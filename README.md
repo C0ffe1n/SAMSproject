@@ -37,3 +37,10 @@ This version is development state, we do not recommend to use in production
 ------------------------------------------------
 
 # Installation
+modules:
+  py7zlib (install module PyLZMA)
+  rarfile
+  GeoIP (pip install GeoIP after emerge -a dev-libs/geoip)
+  pymongo (emerge -a pymongo (v.<3.0))
+Install mongo (emerge -a mongodb)
+Create folder (queue, analysis/malware, tmp, backup)
