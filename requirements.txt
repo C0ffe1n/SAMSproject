@@ -1,0 +1,15 @@
+python-magic==0.4.6
+pymongo>=3.2.2
+pylzma>=0.4.8
+rarfile>=2.6
+geoip>=1.3.2
+python-ldap>=2.4.19
+jansson>=2.7
+
+Yara 3.5.0
+https://github.com/VirusTotal/yara/releases
+
+PyClamd
+http://xael.org/pages/pyclamd-en.html
+
+django==1.8.2
