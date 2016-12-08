@@ -61,11 +61,13 @@ class MailFilter(object):
                     return True
         return False
 
-    def express_chk_content(self, data, contencode):
+    def express_chk_content(self, data, contencode, subtype):
         if data.get_filename():
             filename = self.normal_str(data.get_filename(), contencode)
+            if filename.endswith('.emz'):
+                return dict(is_arch=False,file_type='',filename='')
             if self.get_attache(os.path.join(self.store, filename), data):
-                res = self.chk_file_is_arch(os.path.join(self.store, filename))
+                res = self.chk_file_is_arch(os.path.join(self.store, filename), subtype)
                 if res:
                     return dict(is_arch=True,file_type=res,filename=os.path.join(self.store, filename))
                 res = self.chk_file_is_other(os.path.join(self.store, filename))
@@ -76,9 +78,10 @@ class MailFilter(object):
     """ Get attachment """
     def get_attache(self, filename, part):
         try:
-            fp = open(filename, 'wb')
-            fp.write(part.get_payload(decode=True))
-            fp.close()
+            if part:
+                fp = open(filename, 'wb')
+                fp.write(part.get_payload(decode=True))
+                fp.close()
         except:
             return False
         return True
@@ -96,6 +99,10 @@ class MailFilter(object):
             if filename.endswith('.dot'):
                 return 'doc'
             if filename.endswith('.lnk'):
+                return 'doc'
+            if filename.endswith('.svg'):
+                return 'doc'
+            if filename.endswith('.html'):
                 return 'doc'
         except Exception as e:
             log.error('Check file is other extensions: %s' % e)
@@ -117,7 +124,9 @@ class MailFilter(object):
         return True
         
     def chk_file_type(self, flist):
-        if len(flist) == 0:
+        if flist is None:
+            return False
+        elif len(flist) == 0:
             return True #heandling file error
         else:
             if self.chk_limit_fcount(flist):
@@ -129,9 +138,8 @@ class MailFilter(object):
             else:
                 return False
     
-    def chk_file_is_arch(self, filename):
+    def chk_file_is_arch(self, filename, subtype):
         try:
-            # python magic
             fileinfo = magic.from_file(filename)
             for archtype in self.arch_type.list:
                 if fileinfo.find(archtype) >= 0:
@@ -199,11 +207,13 @@ class MailFilterManager(MailFilter):
     def enum_attachment(self, data):
         arcMgr = ArchiveManager()
         for part in data.walk():
-            if part.get_content_maintype() == 'multipart':
+            maintype = part.get_content_maintype()
+            subtype = part.get_content_subtype()
+            if maintype == 'multipart' or maintype == 'image' or subtype == 'x-ms-wmz':
                 continue
             contencode = part['Content-Transfer-Encoding']
             if contencode == 'base64':
-                res = self.express_chk_content(part, contencode)
+                res = self.express_chk_content(part, contencode, subtype)
                 if res['is_arch']:
                     res = self.chk_file_type(arcMgr.explore_arch(res['file_type'], res['filename']))
                     if res:
