@@ -10,6 +10,7 @@ import mimetypes
 import magic
 import re
 import subprocess
+import pylzma
 import py7zlib
 import zipfile
 import rarfile
@@ -93,9 +94,9 @@ class ArchiveManager(object):
         return False
     
     def explore_arch(self, archtype, filename):
-        if not re.search(self.arch_type.pattern_part, filename) is None:
+        if self.archive_is_part(filename, archtype):
             log.info('Email does not contain suspicious files')
-            return []
+            return None
         if archtype == 'RAR':
             return self.rar_explore(filename)
         if archtype == 'Zip':
@@ -138,7 +139,6 @@ class ArchiveManager(object):
                 for archtype in self.arch_type.list:
                     if fileinfo.find(archtype.lower()) == 0:
                         if archtype == 'RAR':
-
                             if not self.rar_extract(os.path.join(path, 'sample'), filename):
                                 self.copy_to_analysis(filename, os.path.join(path, 'sample', os.path.basename(filename)))
                             success = True
@@ -193,13 +193,27 @@ class ArchiveManager(object):
     def copy_to_analysis(self, filename, dst):
         shutil.copy(filename, dst)
         
+    def archive_is_part(self, filename, _type):
+        try:
+            if _type == "RAR":
+                rf = rarfile.RarFile(filename)
+                rf.close()
+            if re.search(self.arch_type.pattern_part, filename) is None:
+               return False 
+        except rarfile.NeedFirstVolume as e:
+            log.info('Archive file is part: %s' % e)
+        return True
+
     def rar_explore(self, filename):
         try:
             flist = []
             rf = rarfile.RarFile(filename)
             for f in rf.infolist():
                 flist.append(f.filename)
+            rf.close()
             return flist
+        except rarfile.NeedFirstVolume as e:
+            log.error('Archive file is part: %s' % e)
         except Exception as e:
             log.error('Processing failed: %s' % e)
             return [os.path.basename(filename)]
@@ -211,10 +225,17 @@ class ArchiveManager(object):
             for l in rf.infolist():
                 nfname = self.generate_new_filename(l.filename)
                 result = self.save_extract_file(rf.read(l), os.path.join(dst, nfname))
+            rf.close()
             if result:
                 return True
             else:
                 return False
+        except rarfile.PasswordRequired:
+            log.error('Processing failed: Password required')
+            return False
+        except rarfile.BadRarFile:
+            log.error('BadRarFile')
+            return False
         except Exception as e:
             log.error('Processing failed: %s' % e)
             return False
@@ -305,17 +326,17 @@ class ArchiveManager(object):
 
     def a7z_extract(self, dst, filename):
         try:
-            proc = subprocess.Popen(['7z', 
+            output, err = subprocess.Popen(['7z', 
                                     'e', 
                                     filename, 
-                                    '-o'+dst],
+                                    '-o'+dst,
+                                    '-p'],
                                     stdout=subprocess.PIPE,
-                                    stdin='\n',
-                                    stderr=subprocess.PIPE)
-            output, err = proc.communicate(input='\n')
+                                    stderr=subprocess.PIPE).communicate()
             if err.find('ERROR:')>=0:
                 for item in os.listdir(dst):
                     os.remove(os.path.join(dst,item))
+                return False
             for k in os.listdir(dst):
                 n_fname = os.path.join(dst, self.generate_new_filename(k.encode('utf-8')))
                 os.rename(os.path.join(dst, k),n_fname)
