@@ -1,0 +1,93 @@
+  GNU nano 2.3.6                                      File: static/webmord/style/style.css                                                                                  
+
+#content {
+width:100%;
+height: 100%;
+overflow: hidden;
+margin-left: auto;
+margin-right: auto;
+position: relative;
+top: 0; left: 0; bottom: 0; right: 0;
+}
+#header {
+display: inline;
+}
+#update {
+width:30%;
+height: 5%;
+overflow: hidden;
+position: relative;
+float:left
+}
+#button_glb{
+width: auto;
+height: 10 px;
+float:left;
+position: relative;
+}
+#form_search{
+width:30%;
+height: 35px;
+overflow: hidden;
+float: right;
+}
+
+
+#worldmap {
+width: 100%; 
+height: 600px;
+overflow: hidden;
+}
+
+#top10hash {
+width:auto;
+height: auto;
+overflow: hidden;
+}
+
+#top10md5 {
+font-size: 12px;
+} 
+#top10sender {
+width: auto;
+height: auto;
+overflow: hidden;
+font-size: 9px;
+}
+
+#top10send {
+font-size: 12px;
+}
+#top10recipient {
+width:auto;
+height: auto;
+overflow: hidden;
+font-size: 9px;
+}
+#top10recip {
+font-size: 12px;
+}
+#top10ipsender {
+width:auto;
+height: auto;
+overflow: hidden;
+font-size: 9px;
+}
+#top10ip {
+font-size: 12px;
+}
+.row-centered {
+    text-align:center;
+}
+.col-centered {
+    display:inline-block;
+    float:none;
+    /* reset the text-align */
+    text-align:left;
+    /* inline-block space fix */
+    margin-right:-4px;
+}
+table.td {
+  padding: 100px;
+  padding-left: 200px;
+}

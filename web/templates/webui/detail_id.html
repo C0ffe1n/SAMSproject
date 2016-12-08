@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    {% load staticfiles %}
+    <title>Detail ID</title>
+
+    <!-- Bootstrap Core CSS -->
+    <link href="{% static "webui/bower_components/bootstrap/dist/css/bootstrap.min.css" %}" rel="stylesheet">
+
+    <!-- MetisMenu CSS -->
+    <link href="{% static "webui/bower_components/metisMenu/dist/metisMenu.min.css" %}" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link href="{% static "webui/dist/css/sb-admin-2.css" %}" rel="stylesheet">
+    <link rel="stylesheet" href="{% static "webui/style/style.css" %}">
+
+    <!-- Custom Fonts -->
+<<<<<<< HEAD:web/templates/webui/detail_id.html
+    <link href="{% static "webui/bower_components/font-awesome/css/font-awesome.min.css" %}" rel="stylesheet" type="text/css">
+=======
+    <link href="{% static "webmord/bower_components/font-awesome/css/font-awesome.min.css" %}" rel="stylesheet" type="text/css">
+>>>>>>> d084cc08144692bf8a48dc9190c59b47fd220fe8:web/sams/templates/webmord/detail_id.html
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+</head>
+
+<body>
+
+    <div id="wrapper">
+
+        <!-- Navigation -->
+        <nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0">
+            <div class="navbar-header">
+               
+                <a class="navbar-brand" href="{% url 'webui:webui' %}">SAMS</a>
+            </div>
+            <!-- /.navbar-header -->
+
+            <!-- /.navbar-top-links -->
+
+            <div class="navbar-default sidebar" role="navigation">
+                <div class="sidebar-nav navbar-collapse">
+                    <ul class="nav" id="side-menu">
+                        <li>
+                            <a href="{% url 'webui:webui' %}"><i class="fa fa-dashboard fa-fw"></i> Dashboard</a>
+                        </li>
+                        
+                        <li>
+                            <a href="{% url 'webui:global_search' %}"><i class="fa fa-search fa-fw"></i> Global Search</a>
+                        </li>
+                        <li>
+                            <a href="{% url 'webui:analytics' %}"><i class="fa fa-bar-chart fa-fw"></i> Analytics</a>
+                        </li>
+                        <li>
+                            <a href="{% url 'webui:global_search_id' %}"><i class="fa fa-credit-card fa-fw"></i> ID</a>
+                        </li>
+                        <li>
+                           <a href="{% url 'ioc_db_stat:index' %}"><i class="fa fa-database fa-fw"></i> IOC DB</a>
+                        </li>
+                        <li>
+                            <a href="{% url 'webui:get_status' %}"><i class="fa fa-tasks fa-fw"></i> Status VM's</a>
+                        </li>
+                    </ul>
+                </div>
+                <!-- /.sidebar-collapse -->
+            </div>
+            <!-- /.navbar-static-side -->
+        </nav>
+
+        <div id="page-wrapper">
+            <div class="row">
+                <div class="col-lg-12">
+                    <h1 class="page-header">Detail information</h1>
+                </div>
+                <!-- /.col-lg-12 -->
+            </div>
+            <!-- /.row -->
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            search
+                        </div>
+                        <div class="panel-body">
+                            <div class="row">
+                                <div class="col-lg-6">
+                                    {% if submit_onload != '0' %}
+                                        <form role="form" id="formx" action="console_search_id" method="post">
+                                        {% csrf_token %}
+                                            <div class="form-group">
+                                                <label>Input ID here:</label>
+                                                    <table class="table table-bordered table-hover table-striped">
+                                                        {{ form.search_content }}
+                                                        {{ form.search_content.errors }}
+                                                    </table>
+                                            </div>
+                                            
+                                                <button type="submit" form="formx" value="Submit" class="btn btn-default">Submit</button>
+                                            
+                                                
+                                            
+                    
+                                        </form>
+                                    {% else %}
+                                        <form role="form" id="formx" action="console_search_id" method="post">
+                                        {% csrf_token %}
+                                        
+                                                
+                                            <div class="form-group">
+                                                <label>Input ID here:</label>
+                                                    <table class="table table-bordered table-hover table-striped">
+                                                        {{ form.search_content }}
+                                                        {{ form.search_content.errors }}
+                                                    </table>
+                                            </div>
+                                            
+                                           
+                                            <button type="submit" form="formx" value="Submit" class="btn btn-default">Submit</button>
+                                            
+                                            
+                    
+                                        </form>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- /.col-lg-6 (nested) -->
+                                <div class="col-lg-6">
+                                    <div id="drawnetwork"></div>
+                                    
+                                </div>
+                                <!-- /.col-lg-6 (nested) -->
+                            </div>
+                            <!-- /.row (nested) -->
+                        </div>
+                        <!-- /.panel-body -->
+                    </div>
+                  
+                    <!-- /.panel -->
+                </div>
+                
+                <!-- /.col-lg-12 -->
+            </div>
+            <!-- /.row -->
+            {% if result_array %}  
+              <div class="panel panel-default" >
+                        <div class="panel-heading"> 
+                            <!--<div id="count_result"> </div>-->
+                                
+           
+                        </div>
+                        <!-- /.panel-heading -->
+                        <div class="panel-body">
+                            <div class="row">
+                                <div class="col-lg-12">
+<!--                                     <div class="table-responsive"> -->
+                                        <div id="result_search"></div>
+                                            
+                                            <table class="table table-bordered table-hover table-striped">
+                                                <caption>Received information:</caption>
+                                                <thead>
+                                                
+                                                    <tr>
+                                                        <th>id</th>
+                                                        <th>From domain</th>
+                                                        <th>From ip</th>
+                                                        <th>From data</th>
+                                                        <th>By domain</th>
+                                                        <th>By ip</th>
+                                                        <th>By data</th> 
+                                                    </tr>
+                                                </thead>
+                                                
+                                                <tbody>
+                                                    {% for x in received_id %}
+                                                        <tr>
+                                                            
+                                                            <td>
+                                                                {% if x.id %}
+                                                                    {{ x.id }}
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                {% if x.from_domain %}
+                                                                    {{ x.from_domain }}
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                {% if x.from_ip %}
+                                                                    {{ x.from_ip }}
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                {% if x.from_data %}
+                                                                    {{ x.from_data }}
+                                                                {% endif %}
+                                                            
+                                                            </td>
+                                                            <td>
+                                                                {% if x.by_domain %}
+                                                                    {{ x.by_domain }}
+                                                                {% endif %}
+                                                            
+                                                            </td>
+                                                            <td>
+                                                                {% if x.by_ip %}
+                                                                    {{ x.by_ip }}
+                                                                {% endif %}
+                                                            
+                                                            </td>
+                                                            <td>
+                                                                {% if x.by_data %}
+                                                                    {{ x.by_data }}
+                                                                {% endif %}
+                                                            
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}   
+                                                    
+                                                <tbody>
+                                                
+                                            </table>
+                                            <table class="table table-bordered table-hover table-striped">
+                                                
+                                                <caption>General information:</caption>
+                                            
+                                                    <tbody>
+                                                        
+                                                    
+                                                    {% for x in result_array %}
+                                                        
+                                                    
+                                                        <tr> 
+                                                            <th>Date</th>
+                                                            <td>{{ x.time_date }}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>ID</th>
+                                                            <td>
+                                                                <script type="text/javascript">
+                                                                    window.onload = function () {
+                                                                        id='{{ x.id }}'
+                                                                        graw_graph();
+                                                                        }
+                                                                </script>
+                                                                <div id="id_table">
+                                                                    {{ x.id }}
+                                                                </div>
+                                                             
+                                                               
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>Verdict</th>
+                                                            <td>
+                                                                <form role="form" id="form_verdict" action="javascript:void(0);" onchange="change_verdict()" method="POST">
+                                                                   
+                                                                    {% csrf_token %}
+                                                                    
+                                                                    {{ form_verdict.verdict_status }}
+                                                                    {{ form_verdict.search_id }}
+                                                                  
+                                                                   
+                                                               
+                                                                </form>
+                                                            </td>
+                                                        </tr>
+                                                        
+                                                        <tr>
+                                                            <th>MD5</th>
+                                                            <td> 
+                                                                {% for c in x.md5_list %}
+                                                                    <p><a href="{% url 'webui:webui' %}search_md5/{{ c }}">{{ c }}</p>
+                                                                {% endfor %}
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>Sender's</th>
+                                                            <td> 
+                                                                {% for c in x.send_list %}
+                                                                    <p><a href="{% url 'webui:webui' %}search_sender/{{ c }}">{{ c }} </p>
+                                                                {% endfor %}
+                                                            </td>
+                                                        </tr>
+                                                        </tr>
+                                                            <th>Recipient's</th>
+                                                            <td> 
+                                                                {% for c in x.recip_list %}
+                                                                    <p><a href="{% url 'webui:webui' %}search_recipient/{{ c }}">{{ c }} </p>
+                                                                {% endfor %}
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>Parent</th>
+                                                            <td>{{ x.parent_sample }}
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>Subject</th>
+                                                            <td>{{ x.subject_inc }}
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>File info</th>
+                                                            <td>{{ x.file_info }}
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            {% if x.sample_description %}
+                                                                <th>Description</th>
+                                                                <td>
+                                                                <p>{{ x.sample_description }}</p>
+                                                                </td>
+                                                            {% else %}
+                                                                <th>Description</th>
+                                                                <td>
+                                                                <p>No data</p>
+                                                                </td>
+                                                            {% endif %}
+                                                        </tr>
+                                                        <tr>
+                                                            <th>MTA</th>
+                                                            <td><a href="{% url 'webui:webui' %}search_mta/{{ x.mta_ip }}">{{ x.mta_ip }}
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>Code</th>
+                                                            <td>
+                                                                <p>{{ x.mta_name }}</p>
+                                                                <a href="{% url 'webui:webui' %}search_region/{{ x.mta_code }}"><p>{{ x.mta_code }}</p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th>Sandbox</th>
+                                                            <td>
+                                                            {% if x.sandbox_tasks %}
+                                                                {% for n in x.sandbox_tasks %}
+                                                                    <p><a href="http://cuckoo.soc/analysis/{{ n.id_task}}">{{ n.sample }}</p>
+                                                                {% endfor %}
+                                                            {% else %}
+                                                                <p>No data</p>
+                                                            {% endif %}
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            {% if x.detect_yara_name %}
+                                                                <th>YARA</th>
+                                                                <td>
+                                                                <p>{{ x.detect_yara_name }}</p>
+                                                                <p>{{ x.detect_yara_res }}</p>
+                                                                </td>
+                                                            {% else %}
+                                                                <th>YARA</th>
+                                                                <td>
+                                                                <p>No data</p>
+                                                                </td>
+                                                            {% endif %}
+                                                        </tr>
+                                                        <tr>
+                                                            {% if x.local_av_name %}
+                                                                <th>Local AV</th>
+                                                                <td>
+                                                                <p>{{ x.local_av_name }}  {{ x.local_av_result }}</p>
+                                                               
+                                                                </td>
+                                                            {% else %}
+                                                                <th>Local AV</th>
+                                                                <td>
+                                                                <p>No data</p>
+                                                                </td>
+                                                            {% endif %}
+                                                        </tr>
+                                                        <tr>
+                                                            <th>VirusTotal</th>
+                                                            <td>
+                                                            {% if x.virus_total_detect_av %}
+                                                                {% for c, v in x.virus_total_detect_av %}
+                                                                    <p><b>{{v}}</b>
+                                                                    {% for b  in c.items %}
+                                                                        
+                                                                        {% if b.0 == 'result' %}
+                                                                            {{ b.1 }}
+                                                                        {% endif %}
+                                                                    {% endfor %}
+                                                                    </p>
+                                                                {% endfor %}
+                                                                <p><a href="{{ virus_total_link }}">{{ virus_total_link }}</a></p>
+                                                           
+                                                            {% else %}
+                                                                <p>No data</p>
+                                                            {% endif %}
+                                                            
+                                                            </td>
+                                                        </tr>
+                                               
+                                                 
+                                                    
+                                                    {% endfor %}
+                                                    </tbody>
+                                            </table>
+                                                
+                                            
+                                            
+
+                                    </div>
+                                </div>
+                        
+                                 
+                            </div>
+                       
+                        </div>
+              
+                    </div>
+                </div>
+            {% endif %}
+        <!-- /#page-wrapper -->
+
+    </div>
+    <!-- /#wrapper -->
+
+    <!-- jQuery -->
+   
+  
+    <script src="{% static "webui/scripts/jquery-1.11.3.js" %}"></script>
+
+    <!-- Bootstrap Core JavaScript -->
+    <script src="{% static "webui/bower_components/bootstrap/dist/js/bootstrap.min.js" %}"></script>
+
+    <!-- Metis Menu Plugin JavaScript -->
+    <script src="{% static "webui/bower_components/metisMenu/dist/metisMenu.min.js" %}"></script>
+
+    <!-- Custom Theme JavaScript -->
+    
+    <script src="{% static "webui/dist/js/sb-admin-2.js" %}"></script>
+   <!-- <script src="{% static "webui/scripts/ajax_glb_search.js" %}"></script>-->
+    <script src="{% static "webui/scripts/draw_graph.js" %}"></script>
+    <script src="{% static "webui/scripts/vis.js" %}"></script>
+    <script src="{% static "webui/scripts/update_verdict.js" %}"></script>
+    <!--<script>window.onload=search_ID()</script>-->
+   
+
+   
+   
+   
+
+    
+
+</body>
+
+</html> 
+
