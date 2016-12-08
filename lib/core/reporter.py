@@ -88,7 +88,7 @@ class Reporter():
             if J2_INIT:
                 context = template.render(dict(block_detect=''.join(block_detect).decode('utf-8'),
                                                 block_title=''.join(block_title).decode('utf-8'),
-                                                block_header=''.join(block_header).decode('utf-8'),
+                                                block_header=''.join(block_header),
                                                 report_sb=''.join(report_sb).decode('utf-8')))
             else:
                 log.info('No Jinja2')
@@ -115,8 +115,8 @@ class Reporter():
             context = ''
             
             if J2_INIT:
-                context = template.render(dict(from_name=''.join(_from).decode('utf-8'),
-                                            subject=''.join(MalM.subject).decode('utf-8'),
+                context = template.render(dict(from_name=''.join(_from),
+                                            subject=''.join(MalM.subject),
                                             attachments=''.join(_attachments).decode('utf-8'),
                                             id_incident=''.join(_id_incident).decode('utf-8')))
             else:
