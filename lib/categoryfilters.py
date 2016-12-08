@@ -6,7 +6,7 @@
 class ExtExecFilters():
     """Executable files filters ."""
     def __init__(self, *args, **kwargs):
-        self.list = ('exe','scr','pif','js','vbs','bat','cmd','com','class','jar','epf','lnk', 'hta', 'ps1', 'wsf')
+        self.list = ('exe','scr','pif','js','vbs','bat','cmd','com','class','jar','epf','lnk', 'hta', 'ps1', 'wsf', 'svg', 'html')
     
 class ExtArchFilters():
     """Archive files filters."""
@@ -14,7 +14,7 @@ class ExtArchFilters():
         self.list = ('gzip','bzip2','bz2','Zip','tgz','RAR','cab','arj','7-zip','tar','ace','JAR','epf')
         self.pattern_arch = 'rar|zip|jar|tar|gzip|tgz|7z|bz2|cab|arj|ace|gz|z|uue|epf'
         self.pattern_end = '\.('+self.pattern_arch+')$'
-        self.pattern_part = '(.*\.part[\d]{1,3}\.('+self.pattern_arch+')$)|(.*\.zip\.[\d]{1,3}$)'
+        self.pattern_part = '(.*\.part[\d]{1,3}\.('+self.pattern_arch+')$)|(.*\.zip\.[\d]{1,3}$)|(.*\.7z\.[\d]{1,3}$)'
         self.pattern_magic = ''
 
 class WhitePostDomainFilters():
