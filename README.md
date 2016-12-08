@@ -47,10 +47,12 @@ This version is development state, we do not recommend to use in production
 
 ### APPs:
   - MongoDB
+  - Yara
+  - ClamAV
 
 ## Initial configuration
 ### Create folder:
-  - queue,
-  - analysis/malware,
-  - tmp,
+  - queue
+  - analysis/malware
+  - tmp
   - backup
