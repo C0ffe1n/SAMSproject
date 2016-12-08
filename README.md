@@ -36,11 +36,23 @@ This version is development state, we do not recommend to use in production
 
 ------------------------------------------------
 
-# Installation
-modules:
-  py7zlib (install module PyLZMA)
-  rarfile
-  GeoIP (pip install GeoIP after emerge -a dev-libs/geoip)
-  pymongo (emerge -a pymongo (v.<3.0))
-Install mongo (emerge -a mongodb)
-Create folder (queue, analysis/malware, tmp, backup)
+## Installation
+### Modules:
+  - pylzma (>=0.4.8)
+  - rarfile (>=2.6)
+  - GeoIP (>=1.3.2,pip install GeoIP after emerge -a dev-libs/geoip)
+  - pymongo (>=3.2.2)
+  - python-magic (=0.4.6)
+  - python-ldap (>=2.4.19)
+  - Yara (3.5.0) - https://github.com/VirusTotal/yara/releases
+  - PyClamd (0.3.17) - http://xael.org/pages/pyclamd-en.html
+
+### APPs:
+  - MongoDB
+
+## Initial configuration
+### Create folder:
+  - queue,
+  - analysis/malware,
+  - tmp,
+  - backup
