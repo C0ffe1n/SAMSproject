@@ -1,8 +1,6 @@
 # SAMS - System Analysis of eMail messageS (v0.1_beta)
 The automatic analysis of emails containing malware
 
-This project is the evolution idea, that was presented at [ZeroNights x04](http://2014.zeronights.ru/defensive.html#karkul) together with Pavel Kulikov.
-
 ## Project purposes:
 - To automate the process of handling and analysis of emails, that contain potentially unsafe files.
 - To reveal unknown threats and response to them, ISS (information security systems) support.
