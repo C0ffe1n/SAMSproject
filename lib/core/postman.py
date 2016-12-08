@@ -80,7 +80,10 @@ class PostMaster(object):
     def get_post(self, index):
         data = None
         resp, data = self.mon_box.fetch(index, '(RFC822)')
-        return data
+        if resp == 'OK':
+            return data[0][1]
+        else:
+            return False
 
     def del_post(self, msg_l):
         try:

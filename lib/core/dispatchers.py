@@ -308,9 +308,11 @@ class PostDispatcher(EventDispatcher):
         filename = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')+'_'+str(fid)
         filename = os.path.join(_QUEUE_DIR, filename+'.eml')
         try:
-            sfile = open(filename, 'a')
-            sfile.write(msg[0][1])
-            sfile.close()
+            if msg:
+                if len(msg) > 1:
+                    sfile = open(filename, 'a')
+                    sfile.write(msg)
+                    sfile.close()
         except IOError as e:
             log.error('File processing: %s' % e)
             return False
