@@ -3,29 +3,20 @@
 # This file is part of System Analysis of eMail messageS (SAMS)
 # See the file 'docs/LICENSE' for copying permission.
 
-import subprocess
 import logging
 import datetime
-import imaplib
 import os
 import ldap
 import shutil
-import magic
 import time
 from lib.config import Config
 from lib.core.postman import PostMaster
 from lib.core.analyzers import AnalyzerMalware
 from lib.exceptions import SAMSPostMasterConnectError, SAMSPostMasterLoginError, SAMSPostMasterFetchError, SAMSAnalysisError, SAMSDatabaseError
-from lib.common.constants import WHITE_LIST_FLAG, INCIDENT_TRUE_FLAG, AMOUNT_ITEMS_FLAG, AV_DETECT_FLAG
-from lib.categoryfilters import ExtArchFilters
 from lib.core.mailfilter import MailFilterManager
 from lib.core.dbmanager import DBManager
-from lib.core.malwareprofile import MalwareManager
-from lib.core.filemanager import FileManager
 from lib.core.reporter import Reporter
-from bson.objectid import ObjectId
-from lib.core.filemanager import ArchiveManager
-from lib.common.constants import _ROOT, _ANALYSIS_DIR, _TMP_DIR, _QUEUE_DIR, _BACKUP_DIR
+from lib.common.constants import _ANALYSIS_DIR, _TMP_DIR, _QUEUE_DIR, _BACKUP_DIR
 
 log = logging.getLogger(__name__)
 
@@ -55,14 +46,10 @@ class AnalysisDispatcher(EventDispatcher):
         log.info('Initialize static analysis manager')
         self.postman = postmaster.postman
         self.cfg = Config()
-        self.arch = ExtArchFilters()
-        self.arcMgr = ArchiveManager()
-        self.analyzer = AnalyzerMalware(self.cfg.analyzer)
         self.report = Reporter(self.cfg)
         self.db = DBManager()
         self.sample = None
         data = self.db.initialize('samsdb')
-        self.analysis_file(None)
 
     def start(self, message):
         log.info('Start analysis manager')
@@ -100,22 +87,41 @@ class AnalysisDispatcher(EventDispatcher):
             return False
         
     def run_task(self, task):
-        msg = None
+        analyzer = AnalyzerMalware(self.cfg)
+        result = ''
         try:
-            FM = FileManager(self.cfg)
             log.info('[Analysis attachment]')
-            if FM.run(task):
-                self.db.update_field_task(task['_id'],'attachment', FM.attachname, 'analysis')
+            result = analyzer.run(task)
+            if result == 'success':
+                log.info('Build report!')
+                rep_evt = self.report.build_report(task,
+                                                   analyzer.MalM,
+                                                   analyzer.sb_tasks)
+                log.info('Send report!')
+                self.postman.send_report(task, rep_evt)
+                
+                #if len(analyzer.MalM.recipient) < 2 and (analyzer.MalM.recipient[0]['email']!=''):
+                    #print self.get_userinfo_ldap(analyzer.MalM.recipient[0]['email'])
+                
+                send_notify = self.check_user_notify(analyzer.MalM.recipient)
+                if not send_notify is None:
+                    rep_evt = self.report.build_user_notify(analyzer.MalM,
+                                                            task['attachment'],
+                                                            str(task['_id']))
+                    self.postman.send_report_user(send_notify,
+                                                  rep_evt,
+                                                  str(task['_id']))
             else:
                 self.db.update_status_task(task['_id'], 'fail')
-                return False
         except IOError as e:
             log.error('File processing: %s' % e)
             log.info(task)
+            result = 'fail'
             self.db.update_status_task(task['_id'], 'fail')
-        if not self.analysis_file(None):
-            return False
-        return True
+            
+        if result == 'success':
+            return True
+        return False
     
     def build_data(self, data, analyzer, _parent):
         return dict(type_attach=data.attach_ftype,
@@ -148,60 +154,6 @@ class AnalysisDispatcher(EventDispatcher):
                                                reg_list=None,
                                                network=dict(domain_list=None,
                                                             ip_list=None))))
-        
-    def analysis_file(self, msg):
-        analysis_report = None
-        task_list = self.db.get_task('status','analysis')
-        for task in task_list:
-            MalM = MalwareManager(self.cfg.analyzer)
-            if not MalM.run(task):
-                self.db.update_status_task(task['_id'], 'fail')
-                break
-            
-            # Check in incidents DB
-            hdata = self.db.get_task('hashes.md5', MalM.attach_md5)
-            if hdata.count() > 0:
-                log.info('takoy est!')
-                first_inc = hdata.next()
-                hdata.rewind()
-                MalM.verdict = self.analyzer.verd_calc(MalM, hdata, INCIDENT_TRUE_FLAG)
-                
-                # Check amount items in incidents DB 
-                if hdata.count() > 10:
-                    MalM.verdict = self.analyzer.verd_calc(MalM, None, AMOUNT_ITEMS_FLAG)
-                
-                # Check the status of the previous existing incident in incidents DB
-                if not first_inc['verdict'] in ['malware', 'suspect']:
-                    if first_inc['verdict'] == 'undefined' and ((MalM.verdict & AMOUNT_ITEMS_FLAG) and AMOUNT_ITEMS_FLAG):
-                        MalM.detect = 'suspect'
-                    else:
-                        self.analyzer.run(MalM, first_inc)
-                else:
-                    MalM.detect = first_inc['verdict']
-                
-                # Update data
-                self.db.update_data_task(task['_id'], self.build_data(MalM, self.analyzer, first_inc['_id']))
-            else:
-                # start of the analysis
-                self.analyzer.run(MalM, task)
-                self.db.update_data_task(task['_id'], self.build_data(MalM, self.analyzer, task['_id']))
-
-            log.info('Build report!')
-            
-            rep_evt = self.report.build_report(task, MalM, self.analyzer.sb_tasks)
-            log.info('Send report!')
-            self.postman.send_report(task, rep_evt)
-            
-            #if len(MalM.recipient) < 2 and (MalM.recipient[0]['email']!=''):
-                #print self.get_userinfo_ldap(MalM.recipient[0]['email'])
-            
-            send_notify = self.check_user_notify(MalM.recipient)
-            if not send_notify is None:
-                rep_evt = self.report.build_user_notify(MalM, task['attachment'],str(task['_id']))
-                self.postman.send_report_user(send_notify,
-                                              rep_evt,
-                                              str(task['_id']))
-        return True
 
     def get_userinfo_ldap(self, email):
         user = email + '*'
