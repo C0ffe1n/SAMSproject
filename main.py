@@ -9,20 +9,22 @@ import argparse
 import datetime
 import logging
 
-from lib.core.manager import init_console_logging
-from lib.core.manager import Manager
+from lib.core.controller import ControlApp
+from lib.common.constants import _VERSION
 
-log = logging.getLogger('main')
+log = logging.getLogger()
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--debug", help="Display debug messages", action="store_true", required=False)
+    parser.add_argument("-v", "--version", action="version", version="You are running System Analysis of eMail messageS {0}".format(_VERSION))
     args = parser.parse_args()
     
-    init_console_logging()
     try:
-        sams = Manager()
-        sams.start()
+        sams = ControlApp()
+        sams.start(debug=args.debug)
     except KeyboardInterrupt:
+        log.setLevel(logging.INFO)
         log.info('Stoping analysis system SAMS.')
         sams.stop()
 

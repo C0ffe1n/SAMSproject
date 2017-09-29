@@ -12,21 +12,23 @@ import socket
 import mimetypes
 import logging
 import time
+
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from email.mime.text import MIMEText
-from lib.exceptions import SAMSPostMasterConnectError, SAMSPostMasterLoginError, SAMSPostMasterFetchError
-from lib.core.mailfilter import MailFilterManager
+
+from lib.common.exceptions import SAMSPostMasterConnectError, SAMSPostMasterLoginError, SAMSPostMasterFetchError
 
 log = logging.getLogger(__name__)
 
-class PostMaster(object):
+
+class PostManager(object):
 
     def __init__(self, cfg):
         log.setLevel(logging.INFO)
-        log.info('Initialize Postmaster')
+        log.info('Initializing the PostManager')
         imaplib._MAXLINE = 2000000
         self.sizef = 0
         self.cfg = cfg
@@ -42,7 +44,7 @@ class PostMaster(object):
         if self.mon_box:
             self.mon_box.login(self.cfg.mon_account, self.cfg.mon_password)
             self.mon_box.select('Inbox')
-            log.info('Postman initialization done!')
+            log.info('PostManager initialized successfully')
             return True
         return False
 
@@ -81,9 +83,12 @@ class PostMaster(object):
         data = None
         resp, data = self.mon_box.fetch(index, '(RFC822)')
         if resp == 'OK':
-            return data[0][1]
+            if len(data[0][1].strip()) > 0:
+                return data[0][1]
+            else:
+                return None
         else:
-            return False
+            return None
 
     def del_post(self, msg_l):
         try:
@@ -105,21 +110,19 @@ class PostMaster(object):
         self.mon_box.close()
         self.mon_box.logout()
 
-    def initialize(self, task, subject, targetinfo):
-        ferro = False
+    def initialize(self, subject, _context, path_attachments):
         self.deetsurl = smtplib.SMTP(self.cfg.send_srv, self.cfg.send_port)
         self.deetsurl.starttls()
         self.message = MIMEMultipart()
         self.message['To'] = self.cfg.name_to+','+self.cfg.name_to_adv
         self.message['From'] = self.cfg.name_from
-        _id = str(task['_id'])
-        self.message['Subject'] = '★[SAMS-ID#'+_id+'] - '+subject
+        self.message['Subject'] = subject
         self.message['Importance'] = 'high'
         self.message['X-Priority'] = '1'
         self.message['X-MSMail-Priority'] = 'High'
         
         # Added attach sample file
-        path = os.path.join(os.path.dirname(task['file']), 'sample.zip')
+        path = os.path.join(path_attachments, 'sample.zip')
         ctype, encoding = mimetypes.guess_type(path)
         if ctype is None or encoding is not None:
             ctype = 'application/octet-stream'
@@ -135,12 +138,9 @@ class PostMaster(object):
             fp.close()
         except IOError as e:
             log.error('The file was not attached ' + path + '\n%s' % e)
-            ferro = True
-            caption_err = '\nThe file was not attached ' + path + '\n%s' % e
-            targetinfo = '\n\r'.join([targetinfo, caption_err.encode('utf-8')])
-        
+            
         # Adding mail file as an attachment
-        path = os.path.join(os.path.dirname(task['file']), 'mails.zip')
+        path = os.path.join(path_attachments, 'mails.zip')
         if os.path.isfile(path):
             self.sizef = os.path.getsize(path)/1024/1024
         
@@ -154,27 +154,25 @@ class PostMaster(object):
             self.message.attach(MIMEApplication(
                                 fp.read(),
                                 Content_Disposition='attachment; filename="%s"' % filename,
-                                Name=filename)
-                                )
+                                Name=filename))
             fp.close()
         except IOError as e:
-            caption_err = '\nThe file was not attached ' + path + '\n%s' % e
-            ferro = True
-            targetinfo = '\n\r'.join([targetinfo, caption_err.encode('utf-8')])
             log.error('The file was not attached ' + path + '\n%s' % e)
         # Creating your plain text message
         # Adding context message - caption
-        HTML_BODY = MIMEText(targetinfo, 'html', _charset='utf-8')
-        self.plaintextemailmessage = targetinfo
-        self.storeplain = MIMEText(self.plaintextemailmessage,  _charset='utf-8') #cp1251
-        if '<html>' in targetinfo:
+        
+        HTML_BODY = MIMEText(_context, 'html', _charset='utf-8')
+        TXT_BODY = MIMEText(_context,  _charset='utf-8')
+        
+        if '<html>' in _context:
             self.message.attach(HTML_BODY)
         else:
-            self.message.attach(self.storeplain)
-        return ferro
+            self.message.attach(TXT_BODY)
+        
+        return True
 
-    def send_report(self, task, context):
-        state = self.initialize(task, 'Вредоносная рассылка', context)
+    def send_report(self, subject, text, path_attachments):
+        state = self.initialize(subject, text, path_attachments)
         
         if (self.sizef > 2):
             self.deetsurl.login(self.cfg.send_account, self.cfg.send_password)
@@ -186,13 +184,11 @@ class PostMaster(object):
         log.info('Email sent to SOC')
         self.deetsurl.quit()
 
-    def send_report_user(self, user, _context, _id):
-        #sign = '\nBest regards,\n-------------------------\nSecurity operations center\nemail: soc@domain1.ru\nтел: 8(499)555-55-55 (12345)'
-        subject = 'Внимание! Вам пришло подозрительное письмо!'
+    def send_report_user(self, user, _context, _subject):
         message = MIMEMultipart()
-        message['To'] = 'User'
-        message['From'] = 'soc@domain1.ru'
-        message['Subject'] = '★'+subject+' - [SAMS-ID#'+_id+']'
+        message['To'] = user
+        message['From'] = 'noreplay@domain1.net'
+        message['Subject'] = '★'+_subject
         message['Importance'] = 'high'
         message['X-Priority'] = '1'
         message['X-MSMail-Priority'] = 'High'

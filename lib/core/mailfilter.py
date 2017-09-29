@@ -4,225 +4,242 @@
 # See the file 'docs/LICENSE' for copying permission.
 
 import os
+import datetime
 import email
 import errno
 import mimetypes
 import magic
 import logging
 import re
+import shutil
+import uuid
+import md5
+
 from email.header import Header
 
-from lib.categoryfilters import ExtDocFilters, ExtOfficeFilters, WhiteListEmailFilters, ExtArchFilters, ExtExecFilters
-from lib.core.filemanager import ArchiveManager
+from lib.common.exceptions import SAMSAnalysisError
+from lib.common.objects import ArchFileExt, SuspectFileExt
+from lib.core.filemanager import FileManager
+from lib.core.dbmanager import DBManager
+from lib.common.constants import _TMP_DIR, _QUEUE_DIR, _BACKUP_DIR, _ANALYSIS_DIR
+from lib.common.constants import FILTER_IDENT_ATTACH_TYPE, FILTER_CHK_SUBJECT, FILTER_CHK_LIMIT_FSIZE, FILTER_EML_FROM
 
 log = logging.getLogger(__name__)
+
 
 class MailFilter(object):
     """
         Base class - filter manager
     """
-    def __init__(self, store):
-        log.setLevel(logging.INFO)
-        self.store = store
-        self.whitelist = WhiteListEmailFilters()
-        self.arch_type = ExtArchFilters()
-        self.exe = ExtExecFilters()
-        self.office = ExtOfficeFilters()
-        self.scan = ExtDocFilters()
+    def __init__(self):
+        self.arch = ArchFileExt()
+        self.exe = SuspectFileExt()
         self.chkflag = False
         self.struct = []
-        log.info('Initialize filter manager')
-
-    """ Get payload (attachments)"""
-    def get_payload(self, content):
-        return content.get_payload()
+        self.fm = FileManager()
     
-    """ Check if msg content contains only text"""
-    def chk_is_spam(self, content):
-        if content.get_content_maintype() == 'text':
-            return True
-        else:
-            return False
+    def run_filter(self, filter_id, filename):
+        score = 0
 
-    """ Check by subject"""
-    def chk_subject(self, msg):
-        subject = msg.get('subject')
-        subject = email.header.decode_header(subject)[0][0]
-        if subject.find('Ссылка')>=0:
-            return False
-        return False
+        data = self.fm.filemsg_read(filename)
+        addr_from = email.utils.getaddresses(data.get_all('from', [])).pop()
+        sndr_name = addr_from[1].split('@')[0]
+        if sndr_name.lower() in self.l_sndr_pass:
+            return dict(code=-100)
+        if filter_id and FILTER_CHK_LIMIT_FSIZE:
+            if not self.chk_limit_fsize(filename):
+                return dict(code=-1)
 
-    """ Check by whitelist """
-    def chk_whitelist(self, msg):
-        for k in self.whitelist.list:
-            from_str = msg.get('from')
-            if not from_str is None:
-                if k in from_str:
-                    return True
-        return False
+        if filter_id and FILTER_IDENT_ATTACH_TYPE:
+            attached_list = self.ident_attach_type(data)
+            if attached_list:
+                if attached_list['eml_attached']:
+                    if len(attached_list['attachment_type_list']) > 1:
+                        return dict(addr_from=addr_from,
+                                    code=101)
+                    else:
+                        data = self.fm.get_attached_eml(data)
+                        attached_list = self.ident_attach_type(data, True)
+                        if attached_list:
+                            if  not attached_list['f_unknown']:
+                                return dict(attached_list,
+                                            addr_from=addr_from,
+                                            type='file',
+                                            code=200)
+                            else:
+                                return dict(addr_from=addr_from,
+                                            code=101)
+                elif not attached_list['f_unknown']:
+                    return dict(attached_list,
+                                addr_from=addr_from,
+                                type='file',
+                                code=200)
+        return dict(addr_from=addr_from,
+                    code=100)
 
-    def express_chk_content(self, data, contencode, subtype):
-        if data.get_filename():
-            filename = self.normal_str(data.get_filename(), contencode)
-            if filename.endswith('.emz'):
-                return dict(is_arch=False,file_type='',filename='')
-            if self.get_attache(os.path.join(self.store, filename), data):
-                res = self.chk_file_is_arch(os.path.join(self.store, filename), subtype)
-                if res:
-                    return dict(is_arch=True,file_type=res,filename=os.path.join(self.store, filename))
-                res = self.chk_file_is_other(os.path.join(self.store, filename))
-                if res:
-                    return dict(is_arch=False,file_type=res,filename=os.path.join(self.store, filename))
-        return dict(is_arch=False,file_type='',filename='')
-
-    """ Get attachment """
-    def get_attache(self, filename, part):
+    def ident_attach_type(self, data, second_iter=False):
+        # all filtered files with no name
+        # not data.get_filename() is None
+        unknown_attachment_type = False
+        eml_attachment_type = second_iter
+        attachment_type_list = []
         try:
-            if part:
-                fp = open(filename, 'wb')
-                fp.write(part.get_payload(decode=True))
-                fp.close()
-        except:
-            return False
-        return True
+            if email.message.Message.is_multipart(data):
+                for part in data.walk():
+                    maintype = part.get_content_maintype()
+                    subtype = part.get_content_subtype()
 
-    def chk_file_is_other(self, filename):
-        try:
-            # python magic
-            fileinfo = magic.from_file(filename)
-            if 'Rich' in fileinfo:
-                return 'doc'
-            if filename.endswith('.docm'):
-                return 'doc'
-            if filename.endswith('.dotm'):
-                return 'doc'
-            if filename.endswith('.dot'):
-                return 'doc'
-            if filename.endswith('.lnk'):
-                return 'doc'
-            if filename.endswith('.svg'):
-                return 'doc'
-            if filename.endswith('.html'):
-                return 'doc'
-        except Exception as e:
-            log.error('Check file is other extensions: %s' % e)
-            return False
-        return False
+                    filename = self.fm.normalize(part.get_filename())
+                    if filename:
+                        if subtype in [u'rfc822',u'x-message-display']:
+                            return dict(attachment_type_list=attachment_type_list,
+                                        eml_attached=True)
+                        elif self.fm.get_attache(_TMP_DIR, filename, part):
+                            ftype = self.fm.get_file_type(_TMP_DIR, filename, subtype)
+                            if not ftype:
+                                unknown_attachment_type = True
+                            id_file = str(uuid.uuid1())
+                            attachment_type_list.append(dict(fname=filename,
+                                                            mtype=maintype,
+                                                            stype=subtype,
+                                                            type=ftype,
+                                                            id_file=id_file))
+                if len(attachment_type_list) > 0:
+                    return dict(attachment_type_list=attachment_type_list,
+                                f_unknown=unknown_attachment_type,
+                                eml_attached=eml_attachment_type)
+                else:
+                    log.info('No attachments')
+                    return None
+            else:
+                log.info('No attachments')
+            return None
+        except SAMSAnalysisError as e:
+            log.error(e)
+            return None
 
-    def chk_limit_fcount(self, flist):
-        if len(flist) > 5:
-            log.info('Limit files exceeded')
-            return False
-        log.info('Limit files norm')
-        return True
-
+    """ Check by size email"""
     def chk_limit_fsize(self, sfile):
         sizef = os.path.getsize(sfile)/1024/1024
-        if sizef > 5:
+        if sizef > 1:
             log.info('Filtered by size: ' + str(sizef)+'MB')
             return False
         return True
-        
-    def chk_file_type(self, flist):
-        if flist is None:
-            return False
-        elif len(flist) == 0:
-            return True #heandling file error
-        else:
-            if self.chk_limit_fcount(flist):
-                for f in flist:
-                    if f[f.rfind('.')+1:] in self.exe.list:
-                        return True
-                    if not re.search(self.arch_type.pattern_end, f) is None:
-                        return True
-            else:
-                return False
-    
-    def chk_file_is_arch(self, filename, subtype):
-        try:
-            fileinfo = magic.from_file(filename)
-            for archtype in self.arch_type.list:
-                if fileinfo.find(archtype) >= 0:
-                    return archtype
-            if filename.endswith('.ace'):
-                return 'ace'
-            if filename.endswith('.arj'):
-                return 'arj'
-            if filename.endswith('.cab'):
-                return 'cab'
-        except Exception as e:
-            log.error('Сrash attachment processing: %s' % e)
-            return False
-        return False
-    
-    def normal_str(self, str, method):
-        if method == 'base64':
-            try:
-                tmp = email.header.decode_header(str)
-                if tmp[0][1]:
-                    nstr = tmp[0][0].decode(tmp[0][1])
-                else:
-                    nstr = tmp[0][0]
-            except:
-                nstr = str
-        else:
-            nstr = str
-        return nstr
-    
-    def check(self):
-        pass
-
 
 class MailFilterManager(MailFilter):
+    """
+        Module email filter
+        Features:        
+        - Monitoring a email queue on the check
+        - Initialize tasks filtering and analysis
+    """
 
-    def filemsg_read(self, path):
-        sfile = open(path, 'r')
-        msg = email.message_from_string(sfile.read())
-        sfile.close()
-        return msg
-    
-    def check(self, sfile):
-        if self.chk_limit_fsize(sfile):
-            msg = self.filemsg_read(sfile)
+    def initialize(self, ctrl, cfg):
+        log.setLevel(logging.INFO)
+        log.info('Initialize module Email Filters')
+        self.ctrl = ctrl
+        self.cfg = cfg
+        self.work_mode = self.cfg.mail['work_mode']
+        self.l_sndr_pass = self.cfg.mail['sender_pass'].split(',')
+        #self.postman = PostManager(self.cfg)
+        self.mtp_relay_list = ['dozor@dozor.ru']
+        self.db = DBManager()
+        data = self.db.initialize('samsdb')
+        self.db.remove_coll('analysis')
+        self.score = 0
+
+    def start(self):
+        listf = os.listdir(_QUEUE_DIR)
+        ec = 0
+        for sfile in listf:
+            filename = os.path.join(_QUEUE_DIR, sfile)
+            log.info('New email for check')
+
+            try:
+                result = self.apply_filters(filename)
+                if result:
+                    ec += 1
+                else:
+                    log.error('File processing: %s' % filename)
+                    log.info(filename)
+            except:
+                log.error('Error occurred while processing e-mails')
+        if ec > 0:
+            self.ctrl.update('email_task')
+
+        log.info('analysis procedure completed')
+
+    def del_post_file(self, sfile):
+        log.info('File delete: %s' % sfile)
+        dfname = os.path.basename(sfile)
+        dpath = os.path.normpath(os.path.join(os.path.dirname(sfile), '..'))
+        shutil.move(sfile, os.path.join(_BACKUP_DIR,dfname))
+        log.info('File move: %s' % os.path.join(_BACKUP_DIR,dfname))
+        #os.remove(sfile)
+
             
-            if 'dozor@dozor.ru' in msg.get('from'):
-                data = self.get_payload(msg)
-                tmp = data[1].get_payload()
-                data = tmp[0]
-            else:
-                data = msg
-            self.chk_subject(msg)
-            if self.chk_whitelist(data):
-                log.info('Not analysed, whitelist')
-                return False        
-            if self.chk_is_spam(data):
-                log.info('Not analysed, SPAM')
-                return False
-            if self.enum_attachment(data):
-                log.info('Email contains suspicious files')
-                return True
-        log.info('No filter matches')
-        return False
+    def notify(self, message, data):
+        if message == 'email_check':
+            self.start()
+    
+    def assessment(self, score, value):
+        if value:
+            return score + 10
+        else:
+            return score - 10
 
-    def enum_attachment(self, data):
-        arcMgr = ArchiveManager()
-        for part in data.walk():
-            maintype = part.get_content_maintype()
-            subtype = part.get_content_subtype()
-            if maintype == 'multipart' or maintype == 'image' or subtype == 'x-ms-wmz':
-                continue
-            contencode = part['Content-Transfer-Encoding']
-            if contencode == 'base64':
-                res = self.express_chk_content(part, contencode, subtype)
-                if res['is_arch']:
-                    res = self.chk_file_type(arcMgr.explore_arch(res['file_type'], res['filename']))
-                    if res:
-                        return True
-                elif res['file_type']=='doc':
-                    return True
-        return False
+    def create_task(self, inc_id, filename):
+        try:
+            profile_path = os.path.join(_ANALYSIS_DIR,'malware', str(inc_id))
+            os.makedirs(profile_path)
+            fname = os.path.basename(filename)
+            shutil.move(filename, os.path.join(profile_path, fname))
+            return os.path.join(profile_path, fname)
+        except IOError as e:
+            log.error('File processing: %s' % e)
+            log.info(filename)
+            return False
+
+    def apply_filters(self, filename):
+        result = self.run_filter(5, filename)
+        if result['code'] >= 200:
+            log.info('This suspicious email')
+
+            inc_id = uuid.uuid4()
+            path = self.create_task(inc_id, filename)
+            if path:
+                timestamp = datetime.datetime.now()
+                query = {
+                        '_id': inc_id,
+                        'addr_from': result['addr_from'][1],
+                        'analyzed_attachments_info' : None,
+                        'analyzed_samples_info' : None,
+                        'attached_list': result['attachment_type_list'],
+                        'eml_attached': result['eml_attached'],
+                        'eml_headers': None,
+                        'verdict': None,
+                        'target': path,
+                        'status': u'new',
+                        'type': result['type'],
+                        'timestamp' : timestamp
+                }
+            else:
+                return False
+            self.db.add_in_coll('analysis', query)
+            return True
+        
+        elif result['code'] == 100:
+            log.info('No suspicious, deleted')
+            return False
+        elif result['code'] == 101:
+            return False
+        elif result['code'] < 0:
+            if result['code'] == -100:
+                self.del_post_file(filename)
+            return False
+
 
     def clear(self):
-        for file in os.listdir(self.store):
-            os.remove(os.path.join(self.store, file))
+        for file in os.listdir(_TMP_DIR):
+            os.remove(os.path.join(_TMP_DIR, file))
         return True

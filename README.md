@@ -1,4 +1,4 @@
-# SAMS - System Analysis of eMail messageS (v0.1_beta)
+# SAMS - System Analysis of eMail messageS (v0.2_beta)
 The automatic analysis of emails containing malware
 
 ## Project purposes:

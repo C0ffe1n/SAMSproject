@@ -17,6 +17,9 @@ class DBManager(object):
         self.dbname = ''
         # self.initialize()
 
+    def remove_coll(self, coll_name):
+        self.db[coll_name].remove()
+        
     def init_db_ioc(self, dbname):
         self.dbname = dbname
         self.connect_to_db(self.dbname)
@@ -28,7 +31,6 @@ class DBManager(object):
 
     def init_data_coll(self):
         self.connect_to_db(self.dbname)
-        #self.db.analysis.remove()
         coll = self.db.fid.find_one({})
         self.close_session()
         if coll is None:
@@ -48,13 +50,26 @@ class DBManager(object):
         doc = data
         res = self.db[collname].insert(doc)
         self.close_session()
+        return res
         
     def get_coll(self, collname, key_search):
+        print 'DB'
         self.connect_to_db(self.dbname)
+        print 1
+        print key_search
         coll = self.db[collname].find(key_search)
         self.close_session()
         return coll
 
+    def check_item_coll(self, collname, key_search):
+        print 'DB'
+        self.connect_to_db(self.dbname)
+        print 1
+        print key_search
+        coll = self.db[collname].find_one(key_search)
+        self.close_session()
+        return coll
+    
     def update_coll_fid(self, index, day):
         self.connect_to_db(self.dbname)
         coll = self.db.fid.find_one({})
@@ -127,29 +142,3 @@ class DBManager(object):
 
     def close_session(self):
         self.session.close()
-
-# Proto func fulltxt_search test 
-    def fulltxt_search(self, collname, word):
-        # full text search key-word
-        print '!!!!!!!!!!!!!!!!!!'
-        data = []
-        self.connect_to_db(self.dbname)
-        #self.db.tfts.remove()
-        #coll = self.db.tfts
-        #self.db.tfts.create_index([("data","text")])
-        #self.db.tfts.insert({"data":"aaa bbb ccc ddd", "author":"user1"})
-        #self.db.tfts.insert({"data":"eee fff ggg aaa", "author":"user2"})
-        #self.db.tfts.insert({"data":"eee fff ggg bbb", "author":"user3"})
-        #print coll
-        data = self.db.analysis.find({"$text": {"$search": "sams/analysis/malware/563e79b"}})
-        #for k in data:
-             #print k["data"]
-        self.close_session()
-        return data
-
-    def find_func(self, collname, key_search):
-        self.connect_to_db(self.dbname)
-        coll = self.db[collname].find({})
-        #coll = self.db[collname].find(key_search)
-        self.close_session()
-        return coll
